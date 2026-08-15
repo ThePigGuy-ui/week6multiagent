@@ -10,11 +10,14 @@ const agentButtons = Array.from(document.querySelectorAll('.agent-item'));
 const tracePrompt = document.getElementById('trace-prompt');
 const traceAgent = document.getElementById('trace-agent');
 const apiKeyInput = document.getElementById('api-key-input');
+const connectButton = document.getElementById('connect-button');
+const connectionStatus = document.getElementById('connection-status');
 
 const state = {
   history: [],
   agentPanelVisible: true,
-  disabledAgents: []
+  disabledAgents: [],
+  apiKeyConnected: false
 };
 
 function addMessage(role, text) {
@@ -85,8 +88,65 @@ async function loadHealth() {
   }
 }
 
+async function connectApiKey() {
+  const apiKey = apiKeyInput.value.trim();
+  
+  if (!apiKey) {
+    connectionStatus.textContent = 'Please enter an API key';
+    connectionStatus.className = 'connection-status error';
+    return;
+  }
+  
+  connectButton.disabled = true;
+  connectionStatus.textContent = 'Connecting...';
+  connectionStatus.className = 'connection-status connecting';
+  
+  try {
+    const response = await fetch('./api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: 'Hello',
+        history: [],
+        disabledAgents: [],
+        apiKey: apiKey
+      })
+    });
+    
+    if (response.ok) {
+      state.apiKeyConnected = true;
+      connectionStatus.textContent = '✓ Connected';
+      connectionStatus.className = 'connection-status success';
+      input.disabled = false;
+      button.disabled = false;
+      apiKeyInput.disabled = true;
+      setStatus('Ready to chat', true);
+    } else {
+      throw new Error('Invalid API key or connection failed');
+    }
+  } catch (error) {
+    state.apiKeyConnected = false;
+    connectionStatus.textContent = '✗ Failed to connect';
+    connectionStatus.className = 'connection-status error';
+    connectButton.disabled = false;
+    setStatus('Connection failed', false);
+  }
+}
+
+connectButton.addEventListener('click', connectApiKey);
+apiKeyInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    connectApiKey();
+  }
+});
+
 async function sendMessage(event) {
   event.preventDefault();
+
+  if (!state.apiKeyConnected) {
+    setStatus('Please connect API key first', false);
+    return;
+  }
 
   const message = input.value.trim();
   if (!message) return;
@@ -158,5 +218,9 @@ input.addEventListener('keydown', (event) => {
 addMessage('bot', 'Hello! I am the orchestrator. I will route your prompt to the right specialist agent: comedian, scientist, or inspector.');
 updateTrace('Waiting for first prompt', 'Orchestrator');
 syncAgentPanel();
+
+// Disable chat until API key is connected
+input.disabled = true;
+button.disabled = true;
 syncAgentButtons();
 loadHealth();
