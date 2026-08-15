@@ -102,6 +102,7 @@ async function connectApiKey() {
   connectionStatus.className = 'connection-status connecting';
   
   try {
+    console.log('Connecting with API key...');
     const response = await fetch('./api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -113,6 +114,9 @@ async function connectApiKey() {
       })
     });
     
+    const data = await response.json();
+    console.log('Response:', data);
+    
     if (response.ok) {
       state.apiKeyConnected = true;
       connectionStatus.textContent = '✓ Connected';
@@ -120,13 +124,17 @@ async function connectApiKey() {
       input.disabled = false;
       button.disabled = false;
       apiKeyInput.disabled = true;
+      connectButton.style.display = 'none';
       setStatus('Ready to chat', true);
     } else {
-      throw new Error('Invalid API key or connection failed');
+      const errorMsg = data.error || 'Invalid API key or connection failed';
+      throw new Error(errorMsg);
     }
   } catch (error) {
+    console.error('Connection error:', error);
     state.apiKeyConnected = false;
-    connectionStatus.textContent = '✗ Failed to connect';
+    const errorMsg = error.message || 'Failed to connect';
+    connectionStatus.textContent = `✗ ${errorMsg.substring(0, 40)}`;
     connectionStatus.className = 'connection-status error';
     connectButton.disabled = false;
     setStatus('Connection failed', false);
