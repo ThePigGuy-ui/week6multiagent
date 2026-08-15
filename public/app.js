@@ -9,6 +9,7 @@ const agentList = document.getElementById('agent-list');
 const agentButtons = Array.from(document.querySelectorAll('.agent-item'));
 const tracePrompt = document.getElementById('trace-prompt');
 const traceAgent = document.getElementById('trace-agent');
+const apiKeyInput = document.getElementById('api-key-input');
 
 const state = {
   history: [],
@@ -107,7 +108,8 @@ async function sendMessage(event) {
       body: JSON.stringify({
         message,
         history: state.history,
-        disabledAgents: state.disabledAgents
+        disabledAgents: state.disabledAgents,
+        apiKey: apiKeyInput.value.trim()
       })
     });
 

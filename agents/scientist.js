@@ -11,12 +11,13 @@ Rules:
 
 Respond with ONLY scientific content.`;
 
-async function generateReply(message, history = []) {
+async function generateReply(message, history = [], apiKey = '') {
   return generateAgentReply({
     message,
     history,
     systemPrompt,
-    agentName: 'scientist'
+    agentName: 'scientist',
+    apiKey
   });
 }
 

@@ -19,13 +19,13 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, history = [], disabledAgents = [] } = req.body || {};
+    const { message, history = [], disabledAgents = [], apiKey = '' } = req.body || {};
 
     if (!message || typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ error: 'A non-empty message is required.' });
     }
 
-    const { agent, agents, reply, steps } = await routeMessage(message.trim(), history, { disabledAgents });
+    const { agent, agents, reply, steps } = await routeMessage(message.trim(), history, { disabledAgents, apiKey });
 
     return res.json({ agent, agents, reply, steps });
   } catch (error) {

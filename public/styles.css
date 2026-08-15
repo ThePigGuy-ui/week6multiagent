@@ -158,6 +158,41 @@ body {
   font-size: 1rem;
 }
 
+.api-key-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  background: rgba(31, 41, 55, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.api-key-section label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.api-key-section input {
+  padding: 0.6rem 0.8rem;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: monospace;
+  transition: border-color 0.2s ease;
+}
+
+.api-key-section input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: rgba(15, 23, 42, 0.95);
+}
+
 .trace-card {
   background: rgba(31, 41, 55, 0.8);
   border: 1px solid var(--border);

@@ -7,8 +7,8 @@ function buildConversationHistory(history = []) {
     }));
 }
 
-async function callOpenAI({ message, history = [], systemPrompt = '' } = {}) {
-  const apiKey = process.env.OPENAI_API_KEY || 'sk-vibe-summer-2026';
+async function callOpenAI({ message, history = [], systemPrompt = '', apiKey = '' } = {}) {
+  const key = apiKey || process.env.OPENAI_API_KEY || '';
   const baseUrl = process.env.OPENAI_BASE_URL || 'https://vibe-proxy-gqv4.onrender.com/v1';
   const messages = [
     ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
@@ -20,7 +20,7 @@ async function callOpenAI({ message, history = [], systemPrompt = '' } = {}) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
+      Authorization: `Bearer ${key}`
     },
     body: JSON.stringify({
       model: 'class-chat-model',
@@ -67,13 +67,13 @@ async function callOllama({ message, history = [], systemPrompt = '' } = {}) {
   return data.message?.content?.trim() || 'No response returned by Ollama.';
 }
 
-async function generateAgentReply({ message, history = [], systemPrompt = '', agentName = 'assistant' } = {}) {
-  if (process.env.OPENAI_API_KEY || true) {
+async function generateAgentReply({ message, history = [], systemPrompt = '', agentName = 'assistant', apiKey = '' } = {}) {
+  if (apiKey || process.env.OPENAI_API_KEY) {
     try {
-      return await callOpenAI({ message, history, systemPrompt });
+      return await callOpenAI({ message, history, systemPrompt, apiKey });
     } catch (openAiError) {
       try {
-        return await callOllama({ message, history, systemPrompt });
+        return await callOllama({ message, history, systemPrompt, apiKey });
       } catch (ollamaError) {
         return `Demo mode: ${agentName} is available, but no live model response is currently reachable. Add an OpenAI key or start Ollama to enable live responses.`;
       }
@@ -81,7 +81,7 @@ async function generateAgentReply({ message, history = [], systemPrompt = '', ag
   }
 
   try {
-    return await callOllama({ message, history, systemPrompt });
+    return await callOllama({ message, history, systemPrompt, apiKey });
   } catch (ollamaError) {
     return `Demo mode: ${agentName} is available, but no live model response is currently reachable. Add an OpenAI key or start Ollama to enable live responses.`;
   }

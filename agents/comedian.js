@@ -11,12 +11,13 @@ Rules:
 
 Respond with ONLY comedy and humor.`;
 
-async function generateReply(message, history = []) {
+async function generateReply(message, history = [], apiKey = '') {
   return generateAgentReply({
     message,
     history,
     systemPrompt,
-    agentName: 'comedian'
+    agentName: 'comedian',
+    apiKey
   });
 }
 

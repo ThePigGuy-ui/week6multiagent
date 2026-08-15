@@ -28,7 +28,7 @@ If uncertain, default to: comedian
 
 User prompt: "`;
 
-async function selectAgentsWithLLM(message, disabledAgents = []) {
+async function selectAgentsWithLLM(message, disabledAgents = [], apiKey = '') {
   const enabledNames = ['comedian', 'scientist', 'inspector'].filter(
     (name) => !disabledAgents.includes(name)
   );
@@ -38,10 +38,10 @@ async function selectAgentsWithLLM(message, disabledAgents = []) {
   try {
     let response;
     try {
-      response = await callOpenAI({ message: '', systemPrompt, history: [] });
+      response = await callOpenAI({ message: '', systemPrompt, history: [], apiKey });
     } catch (openAiError) {
       try {
-        response = await callOllama({ message: '', systemPrompt, history: [] });
+        response = await callOllama({ message: '', systemPrompt, history: [], apiKey });
       } catch (ollamaError) {
         return fallbackKeywordSelection(message, disabledAgents);
       }
@@ -108,8 +108,8 @@ function fallbackKeywordSelection(message, disabledAgents = []) {
   return unique;
 }
 
-async function resolveAgents(message, disabledAgents = []) {
-  return selectAgentsWithLLM(message, disabledAgents);
+async function resolveAgents(message, disabledAgents = [], apiKey = '') {
+  return selectAgentsWithLLM(message, disabledAgents, apiKey);
 }
 
 function pickAgent(message, disabledAgents = []) {
@@ -118,7 +118,8 @@ function pickAgent(message, disabledAgents = []) {
 
 async function routeMessage(message, history = [], options = {}) {
   const disabledAgents = Array.isArray(options.disabledAgents) ? options.disabledAgents : [];
-  const triggeredAgents = await resolveAgents(message, disabledAgents);
+  const apiKey = options.apiKey || '';
+  const triggeredAgents = await resolveAgents(message, disabledAgents, apiKey);
   const selectedAgent = triggeredAgents[0] || pickAgent(message, disabledAgents);
 
   if (options.skipModel) {
@@ -133,7 +134,7 @@ async function routeMessage(message, history = [], options = {}) {
   let currentHistory = [...history];
 
   for (const agent of triggeredAgents) {
-    const output = await agent.generateReply(message, currentHistory);
+    const output = await agent.generateReply(message, currentHistory, apiKey);
     steps.push({ agent: agent.name, reply: output });
     currentHistory = [
       ...currentHistory,

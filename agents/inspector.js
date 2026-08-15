@@ -12,12 +12,13 @@ Rules:
 
 Respond with ONLY investigative analysis.`;
 
-async function generateReply(message, history = []) {
+async function generateReply(message, history = [], apiKey = '') {
   return generateAgentReply({
     message,
     history,
     systemPrompt,
-    agentName: 'inspector'
+    agentName: 'inspector',
+    apiKey
   });
 }
 
