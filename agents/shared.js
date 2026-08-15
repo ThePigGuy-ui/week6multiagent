@@ -10,6 +10,11 @@ function buildConversationHistory(history = []) {
 async function callOpenAI({ message, history = [], systemPrompt = '', apiKey = '' } = {}) {
   const key = apiKey || process.env.OPENAI_API_KEY || '';
   const baseUrl = process.env.OPENAI_BASE_URL || 'https://vibe-proxy-gqv4.onrender.com/v1';
+  
+  if (!key) {
+    throw new Error('No API key provided. Please connect your OpenAI API key.');
+  }
+  
   const messages = [
     ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
     ...buildConversationHistory(history),
@@ -72,10 +77,12 @@ async function generateAgentReply({ message, history = [], systemPrompt = '', ag
     try {
       return await callOpenAI({ message, history, systemPrompt, apiKey });
     } catch (openAiError) {
+      console.error(`${agentName} - OpenAI error:`, openAiError.message);
       try {
         return await callOllama({ message, history, systemPrompt, apiKey });
       } catch (ollamaError) {
-        return `Demo mode: ${agentName} is available, but no live model response is currently reachable. Add an OpenAI key or start Ollama to enable live responses.`;
+        console.error(`${agentName} - Ollama error:`, ollamaError.message);
+        return `Demo mode: ${agentName} is available, but no live model response is currently reachable. Error: ${openAiError.message}`;
       }
     }
   }
@@ -83,6 +90,7 @@ async function generateAgentReply({ message, history = [], systemPrompt = '', ag
   try {
     return await callOllama({ message, history, systemPrompt, apiKey });
   } catch (ollamaError) {
+    console.error(`${agentName} - Ollama fallback error:`, ollamaError.message);
     return `Demo mode: ${agentName} is available, but no live model response is currently reachable. Add an OpenAI key or start Ollama to enable live responses.`;
   }
 }

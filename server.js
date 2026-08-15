@@ -25,6 +25,8 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'A non-empty message is required.' });
     }
 
+    console.log(`[Chat Request] Message: "${message.substring(0, 50)}..." | API Key present: ${!!apiKey} | Disabled agents: ${disabledAgents.join(', ') || 'none'}`);
+
     const { agent, agents, reply, steps } = await routeMessage(message.trim(), history, { disabledAgents, apiKey });
 
     return res.json({ agent, agents, reply, steps });
