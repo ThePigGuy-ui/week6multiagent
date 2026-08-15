@@ -76,7 +76,7 @@ agentButtons.forEach((button) => {
 
 async function loadHealth() {
   try {
-    const response = await fetch('/api/health');
+    const response = await fetch('./api/health');
     const data = await response.json();
     setStatus(data.provider === 'openai' ? 'OpenAI ready' : 'Ollama ready', true);
   } catch (error) {
@@ -101,7 +101,7 @@ async function sendMessage(event) {
   addMessage('system', 'Working on your answer...');
 
   try {
-    const response = await fetch('/api/chat', {
+    const response = await fetch('./api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
