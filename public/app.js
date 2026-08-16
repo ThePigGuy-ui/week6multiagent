@@ -18,6 +18,27 @@ const universeSelect = document.getElementById('universe-select');
 
 const STORAGE_KEY = 'multi-agent-chat-state';
 const DEFAULT_THEME = 'dark';
+const API_BASE_URL = (window.APP_API_BASE_URL || localStorage.getItem('multi-agent-api-url') || '').replace(/\/$/, '');
+
+function apiUrl(path) {
+  return `${API_BASE_URL}${path}`;
+}
+
+async function requestChat(body) {
+  if (window.location.hostname.endsWith('github.io') && !API_BASE_URL) {
+    throw new Error('This GitHub Pages site needs a deployed backend URL. Set window.APP_API_BASE_URL in public/config.js to your Express server URL.');
+  }
+
+  try {
+    return await fetch(apiUrl('/api/chat'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+  } catch (error) {
+    throw error;
+  }
+}
 
 const state = {
   history: [],
@@ -245,16 +266,12 @@ async function connectApiKey() {
   connectionStatus.className = 'connection-status connecting';
 
   try {
-    const response = await fetch('./api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const response = await requestChat({
         message: 'Hello',
         history: [],
         disabledAgents: [],
         apiKey: apiKey,
         universe: state.universe
-      })
     });
 
     const data = await response.json();
@@ -312,16 +329,12 @@ async function sendMessage(event) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 
   try {
-    const response = await fetch('./api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    const response = await requestChat({
         message: cleanMessage,
         history: state.history,
         disabledAgents: state.disabledAgents,
         apiKey: apiKeyInput.value.trim(),
         universe: state.universe
-      })
     });
 
     const data = await response.json();

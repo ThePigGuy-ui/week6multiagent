@@ -52,6 +52,16 @@ npm start
 
 The app will start on the first available port, which may shift if 3000 is occupied.
 
+## Deploy the frontend to GitHub Pages
+
+GitHub Pages hosts static files only; it cannot run `server.js` or provide the `/api/chat` route. Deploy the Node/Express server separately on a service such as Render, then set its public URL in `public/config.js`:
+
+```js
+window.APP_API_BASE_URL = 'https://your-express-server.example.com';
+```
+
+Set `FRONTEND_ORIGINS=https://thepigguy-ui.github.io` on the server deployment so browser requests from GitHub Pages are accepted. The GitHub Pages URL can then call the deployed backend instead of trying to call `/api/chat` on the static site.
+
 ## Verify routing
 
 A routing test file is included:
