@@ -74,15 +74,7 @@ agentButtons.forEach((button) => {
   });
 });
 
-async function loadHealth() {
-  try {
-    const response = await fetch('/api/health');
-    const data = await response.json();
-    setStatus(data.provider === 'openai' ? 'OpenAI ready' : 'Ollama ready', true);
-  } catch (error) {
-    setStatus('Demo mode', true);
-  }
-}
+
 
 async function sendMessage(event) {
   event.preventDefault();
@@ -157,4 +149,3 @@ addMessage('bot', 'Hello! I am the orchestrator. I will route your prompt to the
 updateTrace('Waiting for first prompt', 'Orchestrator');
 syncAgentPanel();
 syncAgentButtons();
-loadHealth();
