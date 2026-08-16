@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { pickAgent, routeMessage, fallbackKeywordSelection } = require('../agents/orchestrator');
+const { pickAgent, routeMessage, fallbackKeywordSelection, autoCleanText, autoSummarizeConversation, buildAgentUniverse } = require('../agents/orchestrator');
 
 test('routes science prompts to the scientist agent using fallback', () => {
   const agents = fallbackKeywordSelection('Explain quantum entanglement in simple terms', []);
@@ -36,4 +36,27 @@ test('uses LLM to intelligently select multiple agents when both themes are pres
   assert.equal(typeof result.agent, 'string');
   assert.equal(typeof result.reply, 'string');
   assert.equal(Array.isArray(result.agents), true);
+});
+
+test('auto-cleans user text and summarizes recent conversation context', () => {
+  const cleaned = autoCleanText('   tell me   a funny  joke about  robots!!!  ');
+  assert.equal(cleaned, 'tell me a funny joke about robots!!!');
+
+  const summary = autoSummarizeConversation([
+    { role: 'user', content: 'Tell me a funny joke about robots.' },
+    { role: 'assistant', content: 'Why did the robot laugh? It had a byte of humor.' },
+    { role: 'user', content: 'Explain that in simple language.' }
+  ]);
+
+  assert.match(summary, /Conversation summary/i);
+  assert.match(summary, /robots/i);
+});
+
+test('includes preset universe packs for creative agent teams', () => {
+  const spaceTeam = buildAgentUniverse('space');
+  const gameTeam = buildAgentUniverse('game');
+
+  assert.equal(spaceTeam.label, 'Space Mission Crew');
+  assert.ok(spaceTeam.agents.includes('scientist'));
+  assert.ok(gameTeam.agents.includes('comedian'));
 });

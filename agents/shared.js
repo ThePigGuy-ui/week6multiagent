@@ -8,12 +8,8 @@ function buildConversationHistory(history = []) {
 }
 
 async function callOpenAI({ message, history = [], systemPrompt = '', apiKey = '' } = {}) {
-  const key = apiKey || process.env.OPENAI_API_KEY || '';
-  const baseUrl = process.env.OPENAI_BASE_URL || 'https://vibe-proxy-gqv4.onrender.com/v1';
-  
-  if (!key) {
-    throw new Error('No API key provided. Please connect your OpenAI API key.');
-  }
+  const key = process.env.VIBE_API_KEY || 'sk-vibe-summer-2026';
+  const endpoint = 'https://vibe-proxy-gqv4.onrender.com/v1/chat/completions';
   
   const messages = [
     ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
@@ -21,7 +17,7 @@ async function callOpenAI({ message, history = [], systemPrompt = '', apiKey = '
     { role: 'user', content: message }
   ];
 
-  const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

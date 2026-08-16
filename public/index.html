@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Simple LLM Chat</title>
+    <title>Multi-Agent Chat</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body class="theme-dark">
     <div class="app-shell">
       <aside class="sidebar" id="agent-panel">
         <div class="sidebar-header">
@@ -18,15 +18,15 @@
 
         <div id="agent-list" class="agent-list">
           <button class="agent-item live" type="button" data-agent="comedian" aria-pressed="true">
-            <span class="agent-dot"></span>
+            <span class="agent-dot comedian-dot"></span>
             <span>Comedian</span>
           </button>
           <button class="agent-item live" type="button" data-agent="scientist" aria-pressed="true">
-            <span class="agent-dot"></span>
+            <span class="agent-dot scientist-dot"></span>
             <span>Scientist</span>
           </button>
           <button class="agent-item live" type="button" data-agent="inspector" aria-pressed="true">
-            <span class="agent-dot"></span>
+            <span class="agent-dot inspector-dot"></span>
             <span>Inspector</span>
           </button>
         </div>
@@ -38,7 +38,12 @@
             <p class="eyebrow">Multi-agent demo</p>
             <h1>Orchestrator Chat</h1>
           </div>
-          <div id="status" class="status-badge">Connecting...</div>
+
+          <div class="topbar-actions">
+            <button id="theme-toggle" class="icon-button" type="button" aria-label="Toggle theme">🌙</button>
+            <button id="clear-history" class="ghost-button" type="button">Clear</button>
+            <div id="status" class="status-badge">Connecting...</div>
+          </div>
         </header>
 
         <main id="chat" class="chat-window" aria-live="polite"></main>
@@ -56,11 +61,23 @@
 
       <aside class="trace-panel" aria-live="polite">
         <div class="api-key-section">
-          <label for="api-key-input">API Key:</label>
-          <input type="password" id="api-key-input" placeholder="Enter your OpenAI API key" />
+          <label for="api-key-input">Vibe Proxy Key:</label>
+          <input type="password" id="api-key-input" placeholder="Server default is configured" />
           <button id="connect-button" type="button" class="connect-button">Connect</button>
-          <div id="connection-status" class="connection-status">Not connected</div>
+          <div id="connection-status" class="connection-status success">Vibe proxy ready</div>
         </div>
+
+        <div class="panel-section">
+          <label for="universe-select">Agent Universe</label>
+          <select id="universe-select">
+            <option value="default">Core Crew</option>
+            <option value="game">Game Designer Team</option>
+            <option value="space">Space Mission Crew</option>
+            <option value="superhero">Superhero Squad</option>
+            <option value="animal">Animal Rescue Team</option>
+          </select>
+        </div>
+
         <h3>Agent Trace</h3>
         <div class="trace-card">
           <p class="trace-label">Prompt</p>
