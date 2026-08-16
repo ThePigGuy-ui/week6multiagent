@@ -78,15 +78,6 @@ agentButtons.forEach((button) => {
   });
 });
 
-async function loadHealth() {
-  try {
-    const response = await fetch('./api/health');
-    const data = await response.json();
-    setStatus(data.provider === 'openai' ? 'OpenAI ready' : 'Ollama ready', true);
-  } catch (error) {
-    setStatus('Demo mode', true);
-  }
-}
 
 async function connectApiKey() {
   const apiKey = apiKeyInput.value.trim();
@@ -231,4 +222,3 @@ syncAgentPanel();
 input.disabled = true;
 button.disabled = true;
 syncAgentButtons();
-loadHealth();
