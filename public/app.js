@@ -65,16 +65,16 @@ function persistState() {
     agentPanelVisible: state.agentPanelVisible,
     theme: state.theme,
     universe: state.universe,
-    apiKeyConnected: state.apiKeyConnected,
-    apiKey: apiKeyInput.value.trim()
+    apiKeyConnected: state.apiKeyConnected
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 
 function restoreState() {
   const raw = localStorage.getItem(STORAGE_KEY);
-  const saved = safeParseHistory(raw);
   const hydrate = raw ? JSON.parse(raw) : null;
+
+  localStorage.removeItem('multi-agent-chat-state');
 
   if (hydrate && typeof hydrate === 'object') {
     state.history = Array.isArray(hydrate.history) ? hydrate.history : [];
@@ -82,17 +82,17 @@ function restoreState() {
     state.agentPanelVisible = hydrate.agentPanelVisible !== false;
     state.theme = hydrate.theme === 'light' ? 'light' : DEFAULT_THEME;
     state.universe = hydrate.universe || 'default';
-    state.apiKeyConnected = hydrate.apiKeyConnected !== false;
-    apiKeyInput.value = hydrate.apiKey || '';
-    if (apiKeyInput.value) {
-      connectButton.style.display = 'none';
-      apiKeyInput.disabled = true;
-      input.disabled = false;
-      button.disabled = false;
-      connectionStatus.textContent = '✓ Connected';
-      connectionStatus.className = 'connection-status success';
-    }
   }
+
+  state.apiKeyConnected = false;
+  apiKeyInput.value = '';
+  apiKeyInput.disabled = false;
+  connectButton.style.display = '';
+  connectionStatus.textContent = 'Enter your API key';
+  connectionStatus.className = 'connection-status';
+  input.disabled = false;
+  button.disabled = false;
+  input.focus();
 }
 
 function addMessage(role, text, details = '') {
@@ -251,13 +251,9 @@ async function connectApiKey() {
   const apiKey = apiKeyInput.value.trim();
 
   if (!apiKey) {
-    state.apiKeyConnected = true;
-    connectionStatus.textContent = 'Vibe proxy ready';
-    connectionStatus.className = 'connection-status success';
-    input.disabled = false;
-    button.disabled = false;
-    setStatus('Ready to chat', true);
-    persistState();
+    connectionStatus.textContent = 'Enter your API key';
+    connectionStatus.className = 'connection-status';
+    setStatus('Key required', false);
     return;
   }
 
@@ -389,3 +385,5 @@ syncUniverse();
 
 input.disabled = false;
 button.disabled = false;
+input.focus();
+input.value = '';
