@@ -6,7 +6,7 @@ This project is a small Express-based chat app that now routes user prompts thro
 - Scientist
 - Inspector
 
-Each agent has its own file and uses the same OpenAI/Ollama call pattern as the original app, while the orchestrator decides which persona should respond based on the user prompt.
+Each agent has its own file and uses the same Vibe proxy/Ollama call pattern as the original app, while the orchestrator decides which persona should respond based on the user prompt.
 
 ## Project structure
 
@@ -24,7 +24,7 @@ Each agent has its own file and uses the same OpenAI/Ollama call pattern as the 
 1. The browser sends a message to `/api/chat`.
 2. The server passes the prompt to the orchestrator.
 3. The orchestrator inspects the message text and selects the best agent.
-4. The selected agent calls the same underlying OpenAI/Ollama logic and returns its reply.
+4. The selected agent calls the same underlying Vibe proxy/Ollama logic and returns its reply.
 5. The frontend displays the message and the selected agent label.
 
 ## Environment setup
@@ -33,13 +33,13 @@ Create a `.env` file from `.env.example` and configure your provider values if n
 
 ```bash
 PORT=3000
-OPENAI_API_KEY=your-key
-OPENAI_BASE_URL=https://api.openai.com/v1
 OLLAMA_BASE_URL=http://localhost:11434
 ```
 
+The Vibe proxy API token is hardcoded in `server.js` (`VIBE_API_KEY`) rather than read from `.env`.
+
 The app keeps the same fallback behavior as before:
-- If an OpenAI API key is available, it tries OpenAI first.
+- It tries the Vibe proxy first, using the token defined in `server.js`.
 - If that fails, it falls back to Ollama.
 - If neither is available, it returns a demo-mode fallback response.
 

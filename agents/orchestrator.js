@@ -1,7 +1,7 @@
 const comedian = require('./comedian');
 const scientist = require('./scientist');
 const inspector = require('./inspector');
-const { callOpenAI, callOllama } = require('./shared');
+const { callVibeProxy, callOllama } = require('./shared');
 
 const AGENTS = [comedian, scientist, inspector];
 const AGENT_MAP = {
@@ -99,8 +99,8 @@ async function selectAgentsWithLLM(message, disabledAgents = [], apiKey = '') {
   try {
     let response;
     try {
-      response = await callOpenAI({ message: '', systemPrompt, history: [], apiKey });
-    } catch (openAiError) {
+      response = await callVibeProxy({ message: '', systemPrompt, history: [], apiKey });
+    } catch (vibeError) {
       try {
         response = await callOllama({ message: '', systemPrompt, history: [], apiKey });
       } catch (ollamaError) {

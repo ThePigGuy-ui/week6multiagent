@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const VIBE_API_KEY = 'sk-vibe-summer-2026';
 
 function isAllowedOrigin(origin) {
   if (!origin) return true;
@@ -44,15 +45,15 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, history = [], disabledAgents = [], apiKey = '' } = req.body || {};
+    const { message, history = [], disabledAgents = [] } = req.body || {};
 
     if (!message || typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ error: 'A non-empty message is required.' });
     }
 
-    console.log(`[Chat Request] Message: "${message.substring(0, 50)}..." | API Key present: ${!!apiKey} | Disabled agents: ${disabledAgents.join(', ') || 'none'}`);
+    console.log(`[Chat Request] Message: "${message.substring(0, 50)}..." | Disabled agents: ${disabledAgents.join(', ') || 'none'}`);
 
-    const { agent, agents, reply, steps } = await routeMessage(message.trim(), history, { disabledAgents, apiKey });
+    const { agent, agents, reply, steps } = await routeMessage(message.trim(), history, { disabledAgents, apiKey: VIBE_API_KEY });
 
     return res.json({ agent, agents, reply, steps });
   } catch (error) {
