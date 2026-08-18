@@ -15,25 +15,140 @@ const universeSelect = document.getElementById('universe-select');
 
 const STORAGE_KEY = 'multi-agent-chat-state';
 const DEFAULT_THEME = 'dark';
-// Same-origin by default; set window.APP_API_BASE_URL in public/config.js when
-// the frontend is deployed separately from the Express server (e.g. GitHub Pages).
-const API_BASE_URL = (window.APP_API_BASE_URL || '').replace(/\/$/, '');
-const CHAT_ENDPOINT = `${API_BASE_URL}/api/chat`;
+const VIBE_PROXY_ENDPOINT = 'https://vibe-proxy-gqv4.onrender.com/v1/chat/completions';
+const VIBE_PROXY_KEY = 'sk-vibe-summer-2026';
 
-// Send the user's prompt to our server, which routes it through the
-// orchestrator/agents and returns { agent, agents, reply, steps }.
-async function requestChat(message) {
-  return fetch(CHAT_ENDPOINT, {
+// Mirrors agents/*.js so the chat works standalone on static hosts (e.g. GitHub
+// Pages) with no backend server required.
+const AGENT_SYSTEM_PROMPTS = {
+  comedian: `You are a comedian. Your ONLY job is to make people laugh with jokes, humor, and entertainment.
+
+Rules:
+- ONLY tell jokes, puns, funny stories, or humorous commentary
+- Do NOT provide serious explanations or educational content
+- Do NOT try to be informative or factual
+- Focus on humor and entertainment only
+- If asked to do something non-humorous, politely decline and offer a joke instead
+
+Respond with ONLY comedy and humor.`,
+  scientist: `You are a scientist. Your ONLY job is to provide clear, accurate, and evidence-based scientific explanations.
+
+Rules:
+- ONLY answer questions with scientific facts and explanations
+- Do NOT tell jokes, make puns, or try to be funny
+- Do NOT provide non-scientific advice or commentary
+- Focus on accuracy, structure, and clarity
+- If asked to do something non-scientific, politely decline and redirect to science
+
+Respond with ONLY scientific content.`,
+  inspector: `You are an investigator. Your ONLY job is to analyze facts, solve mysteries, and investigate problems with detective-like reasoning.
+
+Rules:
+- ONLY investigate, analyze evidence, and solve mysteries
+- Do NOT tell jokes or be entertaining
+- Do NOT provide casual friendly banter
+- Focus on logical deduction, evidence, and problem-solving
+- Think like a detective: gather facts, identify patterns, reason about causes
+- If asked to do something non-investigative, politely decline and offer to investigate instead
+
+Respond with ONLY investigative analysis.`
+};
+
+const SELECTOR_PROMPT = `You are an intelligent orchestrator. Given the user's prompt, determine which specialist agents should handle it, in order of priority.
+
+Available agents:
+- comedian: handles jokes, humor, entertainment, making things funny
+- scientist: handles science questions, research, technical topics, explanations
+- inspector: handles investigations, mysteries, detective work, problem-solving
+
+Respond with ONLY a JSON array of agent names in order of priority. Include every agent that should contribute, and do not include agents that are irrelevant.
+Examples:
+- ["scientist"] (for: Explain quantum physics)
+- ["scientist", "comedian"] (for: Tell me something funny about science)
+- ["inspector"] (for: Solve this mystery)
+- ["comedian"] (for: Make me laugh)
+
+Only use the available agent names exactly as written. If uncertain, choose the most relevant available agent.`;
+
+function buildConversationHistory(history = []) {
+  return history
+    .filter((msg) => msg && typeof msg.content === 'string' && msg.content.trim())
+    .map((msg) => ({
+      role: msg.role === 'assistant' ? 'assistant' : 'user',
+      content: msg.content.trim()
+    }));
+}
+
+async function callVibeProxy({ message, history = [], systemPrompt = '' }) {
+  const messages = [
+    ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+    ...buildConversationHistory(history),
+    { role: 'user', content: message }
+  ];
+
+  const response = await fetch(VIBE_PROXY_ENDPOINT, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${VIBE_PROXY_KEY}`
     },
-    body: JSON.stringify({
-      message,
-      history: state.history,
-      disabledAgents: state.disabledAgents
-    })
+    body: JSON.stringify({ model: 'class-chat-model', messages })
   });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.error?.message || data?.error || 'Vibe proxy request failed');
+  }
+
+  return data.choices?.[0]?.message?.content?.trim() || 'No response returned by the model.';
+}
+
+async function selectAgents(message, disabledAgents = []) {
+  const enabledNames = Object.keys(AGENT_SYSTEM_PROMPTS).filter((name) => !disabledAgents.includes(name));
+  const systemPrompt = `${SELECTOR_PROMPT}\n\nCurrently enabled agents: ${enabledNames.join(', ')}`;
+
+  const response = await callVibeProxy({ message, systemPrompt });
+  const normalized = response.trim().replace(/^```(?:json)?\s*|\s*```$/gi, '');
+  const selectedNames = JSON.parse(normalized);
+
+  if (!Array.isArray(selectedNames)) {
+    throw new Error('Agent selector did not return an array');
+  }
+
+  const names = [];
+  selectedNames
+    .map((name) => String(name).toLowerCase().trim())
+    .filter((name) => enabledNames.includes(name))
+    .forEach((name) => {
+      if (!names.includes(name)) names.push(name);
+    });
+
+  if (names.length === 0) {
+    throw new Error('Agent selector returned no enabled agents');
+  }
+
+  return names;
+}
+
+// Selects the right specialist agent(s) and returns { agent, agents, reply }.
+async function routeMessage(message, history, disabledAgents) {
+  const agentNames = await selectAgents(message, disabledAgents);
+
+  const steps = [];
+  let currentHistory = [...history];
+
+  for (const name of agentNames) {
+    const reply = await callVibeProxy({ message, history: currentHistory, systemPrompt: AGENT_SYSTEM_PROMPTS[name] });
+    steps.push({ agent: name, reply });
+    currentHistory = [...currentHistory, { role: 'assistant', content: reply }];
+  }
+
+  const reply = steps.length > 1
+    ? steps.map(({ agent, reply: text }) => `[${agent}] ${text}`).join('\n\n')
+    : steps[0]?.reply || 'No response returned.';
+
+  return { agent: agentNames[0], agents: agentNames, reply };
 }
 
 const state = {
@@ -271,30 +386,19 @@ async function sendMessage(event) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 
   try {
-    const response = await requestChat(cleanMessage);
+    const historyBeforeReply = state.history.slice(0, -1);
+    const { agent, reply } = await routeMessage(cleanMessage, historyBeforeReply, state.disabledAgents);
 
     const systemMessage = document.querySelector('.message.system:last-of-type');
     if (systemMessage) {
       systemMessage.remove();
     }
 
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      throw new Error('This chat needs the app server running. Start it with "npm start" and open the page it prints (e.g. http://localhost:3000) instead of a static file/GitHub Pages preview.');
-    }
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data?.error || 'The server returned an error.');
-    }
-
-    const reply = data?.reply?.trim();
     if (!reply) {
-      throw new Error('The server returned an empty response.');
+      throw new Error('No response returned.');
     }
 
-    const agentLabel = data?.agent || 'orchestrator';
+    const agentLabel = agent || 'orchestrator';
     addMessage('bot', reply, agentLabel);
 
     updateTrace(cleanMessage, agentLabel);
@@ -303,6 +407,10 @@ async function sendMessage(event) {
     persistState();
     playTone('send');
   } catch (error) {
+    const systemMessage = document.querySelector('.message.system:last-of-type');
+    if (systemMessage) {
+      systemMessage.remove();
+    }
     addMessage('bot', `Error: ${error.message}`, 'assistant');
     setStatus('Need attention', false);
   } finally {
