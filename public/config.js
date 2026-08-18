@@ -1,3 +1,1 @@
-// For GitHub Pages, replace this value with the public URL of your deployed Express server.
-// Example: window.APP_API_BASE_URL = 'https://week6multiagent-api.onrender.com';
-window.APP_API_BASE_URL = window.APP_API_BASE_URL || '';
+// The GitHub Pages client calls the classroom proxy directly from public/app.js.

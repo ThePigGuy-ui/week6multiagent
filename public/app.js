@@ -15,26 +15,24 @@ const universeSelect = document.getElementById('universe-select');
 
 const STORAGE_KEY = 'multi-agent-chat-state';
 const DEFAULT_THEME = 'dark';
-const API_BASE_URL = (window.APP_API_BASE_URL || localStorage.getItem('multi-agent-api-url') || '').replace(/\/$/, '');
+const VIBE_PROXY_ENDPOINT = 'https://vibe-proxy-gqv4.onrender.com/v1/chat/completions';
+const VIBE_PROXY_KEY = 'sk-vibe-summer-2026';
 
-function apiUrl(path) {
-  return `${API_BASE_URL}${path}`;
-}
-
-async function requestChat(body) {
-  if (window.location.hostname.endsWith('github.io') && !API_BASE_URL) {
-    throw new Error('This GitHub Pages site needs a deployed backend URL. Set window.APP_API_BASE_URL in public/config.js to your Express server URL.');
-  }
-
-  try {
-    return await fetch(apiUrl('/api/chat'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-  } catch (error) {
-    throw error;
-  }
+// Send the user's prompt to the classroom proxy and return its raw response.
+// The proxy follows the chat-completions format, so the answer is read from
+// data.choices[0].message.content after the JSON response is parsed.
+async function requestChat(message) {
+  return fetch(VIBE_PROXY_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${VIBE_PROXY_KEY}`
+    },
+    body: JSON.stringify({
+      model: 'class-chat-model',
+      messages: [{ role: 'user', content: message }]
+    })
+  });
 }
 
 const state = {
@@ -258,12 +256,7 @@ async function sendMessage(event) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 
   try {
-    const response = await requestChat({
-        message: cleanMessage,
-        history: state.history,
-        disabledAgents: state.disabledAgents,
-        universe: state.universe
-    });
+    const response = await requestChat(cleanMessage);
 
     const data = await response.json();
     const systemMessage = document.querySelector('.message.system:last-of-type');
@@ -272,21 +265,19 @@ async function sendMessage(event) {
     }
 
     if (!response.ok) {
-      throw new Error(data.error || 'The model returned an error.');
+      throw new Error(data?.error?.message || data?.error || 'The model returned an error.');
     }
 
-    const steps = Array.isArray(data.steps) && data.steps.length
-      ? data.steps
-      : [{ agent: data.agent, reply: data.reply }];
+    const reply = data?.choices?.[0]?.message?.content?.trim();
+    if (!reply) {
+      throw new Error('The proxy returned an empty response.');
+    }
 
-    steps.forEach(({ agent, reply }) => {
-      addMessage('bot', reply, agent || 'assistant');
-    });
+    addMessage('bot', reply, 'classroom proxy');
 
-    const lastReply = steps[steps.length - 1]?.reply || data.reply || '';
-    updateTrace(cleanMessage, Array.isArray(data.agents) ? data.agents.join(' -> ') : (data.agent || 'unknown'));
-    state.history.push({ role: 'assistant', content: lastReply });
-    setStatus(`Ready: ${data.agent || 'assistant'}`, true);
+    updateTrace(cleanMessage, 'classroom proxy');
+    state.history.push({ role: 'assistant', content: reply });
+    setStatus('Ready to chat', true);
     persistState();
     playTone('send');
   } catch (error) {
