@@ -175,6 +175,10 @@ function updateTrace(prompt, agent) {
   traceAgent.textContent = agent || 'Waiting...';
 }
 
+function isComedyPrompt(message) {
+  return /(joke|funny|laugh|comedy|humor|pun|roast|standup|banter|giggle|hilarious)/i.test(message);
+}
+
 agentToggle.addEventListener('click', () => {
   state.agentPanelVisible = !state.agentPanelVisible;
   syncAgentPanel();
@@ -244,6 +248,16 @@ async function sendMessage(event) {
   input.value = '';
   addMessage('user', cleanMessage, 'you');
   state.history.push({ role: 'user', content: cleanMessage });
+
+  if (isComedyPrompt(cleanMessage) && state.disabledAgents.includes('comedian')) {
+    const unavailableMessage = 'The comedian agent is disabled. Enable it to request a joke.';
+    addMessage('bot', unavailableMessage, 'orchestrator');
+    state.history.push({ role: 'assistant', content: unavailableMessage });
+    updateTrace(cleanMessage, 'comedian disabled');
+    setStatus('Comedian is disabled', false);
+    persistState();
+    return;
+  }
 
   button.disabled = true;
   input.disabled = true;

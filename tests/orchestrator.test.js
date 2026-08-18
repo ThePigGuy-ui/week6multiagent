@@ -1,38 +1,57 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { pickAgent, routeMessage, fallbackKeywordSelection, autoCleanText, autoSummarizeConversation, buildAgentUniverse } = require('../agents/orchestrator');
+const { routeMessage, selectAgentsWithLLM, autoCleanText, autoSummarizeConversation, buildAgentUniverse } = require('../agents/orchestrator');
 
-test('routes science prompts to the scientist agent using fallback', () => {
-  const agents = fallbackKeywordSelection('Explain quantum entanglement in simple terms', []);
-  assert.equal(agents[0].name, 'scientist');
-});
+test('uses the user prompt to parse the LLM-selected agent order', async () => {
+  const originalFetch = global.fetch;
+  let request;
 
-test('routes detective prompts to the inspector agent using fallback', () => {
-  const agents = fallbackKeywordSelection('We have a suspect and a clue, investigate the case', []);
-  assert.equal(agents[0].name, 'inspector');
-});
+  global.fetch = async (url, options) => {
+    request = { url, body: JSON.parse(options.body) };
+    return {
+      ok: true,
+      async json() {
+        return { choices: [{ message: { content: '["scientist", "comedian"]' } }] };
+      }
+    };
+  };
 
-test('routes comedy prompts to the comedian agent using fallback', () => {
-  const agents = fallbackKeywordSelection('Tell me a funny joke about a programmer', []);
-  assert.equal(agents[0].name, 'comedian');
+  try {
+    const agents = await selectAgentsWithLLM('Explain the science behind a funny quantum joke', [], 'test-key');
+    assert.deepEqual(agents.map((agent) => agent.name), ['scientist', 'comedian']);
+    assert.equal(request.body.messages.at(-1).content, 'Explain the science behind a funny quantum joke');
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
 
 test('returns an agent name and response when routing a message', async () => {
-  const result = await routeMessage('Why is the moon so mysterious?', []);
+  const result = await routeMessage('Why is the moon so mysterious?', [], {
+    skipModel: true,
+    agentSelector: async () => [{ name: 'scientist' }]
+  });
   assert.equal(typeof result.agent, 'string');
   assert.equal(typeof result.reply, 'string');
   assert.equal(Array.isArray(result.agents), true);
 });
 
 test('skips disabled agents when selecting a specialist', async () => {
-  const result = await routeMessage('Tell me a joke about robots', [], { disabledAgents: ['comedian'] });
+  const result = await routeMessage('Tell me a joke about robots', [], {
+    disabledAgents: ['comedian'],
+    skipModel: true,
+    agentSelector: async (_message, disabledAgents) =>
+      disabledAgents.includes('comedian') ? [{ name: 'scientist' }] : [{ name: 'comedian' }]
+  });
   assert.notEqual(result.agent, 'comedian');
   assert.equal(typeof result.reply, 'string');
 });
 
 test('uses LLM to intelligently select multiple agents when both themes are present', async () => {
-  const result = await routeMessage('Explain the science behind a funny quantum joke', []);
+  const result = await routeMessage('Explain the science behind a funny quantum joke', [], {
+    skipModel: true,
+    agentSelector: async () => [{ name: 'scientist' }, { name: 'comedian' }]
+  });
   assert.equal(typeof result.agent, 'string');
   assert.equal(typeof result.reply, 'string');
   assert.equal(Array.isArray(result.agents), true);

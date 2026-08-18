@@ -12,7 +12,7 @@ Each agent has its own file and uses the same Vibe proxy/Ollama call pattern as 
 
 - `server.js` — Express server and main `/api/chat` route
 - `agents/shared.js` — shared LLM call logic for conversation history and provider fallback
-- `agents/orchestrator.js` — picks the correct agent based on prompt intent
+- `agents/orchestrator.js` — asks the LLM to select and order agents based on prompt intent
 - `agents/comedian.js` — humorous, witty responder
 - `agents/scientist.js` — structured, evidence-based scientific responder
 - `agents/inspector.js` — detective-style investigator responder
@@ -23,7 +23,7 @@ Each agent has its own file and uses the same Vibe proxy/Ollama call pattern as 
 
 1. The browser sends a message to `/api/chat`.
 2. The server passes the prompt to the orchestrator.
-3. The orchestrator inspects the message text and selects the best agent.
+3. The orchestrator asks the LLM which specialist agents should handle the prompt and in what order.
 4. The selected agent calls the same underlying Vibe proxy/Ollama logic and returns its reply.
 5. The frontend displays the message and the selected agent label.
 
@@ -38,10 +38,10 @@ OLLAMA_BASE_URL=http://localhost:11434
 
 The Vibe proxy API token is hardcoded in `server.js` (`VIBE_API_KEY`) rather than read from `.env`.
 
-The app keeps the same fallback behavior as before:
+Agent selection uses the same provider order as agent replies:
 - It tries the Vibe proxy first, using the token defined in `server.js`.
 - If that fails, it falls back to Ollama.
-- If neither is available, it returns a demo-mode fallback response.
+- If neither provider can determine the agent list, the request returns an error instead of guessing from keywords.
 
 ## Run locally
 
@@ -71,9 +71,9 @@ node --test tests/orchestrator.test.js
 ```
 
 This checks:
-- science prompts route to the scientist
-- detective prompts route to the inspector
-- joke prompts route to the comedian
+- the LLM-selected JSON list is parsed in its supplied order
+- the user's prompt is sent to the selector as the user message
+- disabled agents are excluded from the selected list
 - the orchestrator returns an agent name and reply
 
 ## Notes

@@ -18,23 +18,21 @@ const AGENT_UNIVERSES = {
   animal: { label: 'Animal Rescue Team', agents: ['inspector', 'scientist', 'comedian'] }
 };
 
-const SELECTOR_PROMPT = `You are an intelligent orchestrator. Given a user prompt, determine which specialist agents should handle it, in order of priority.
+const SELECTOR_PROMPT = `You are an intelligent orchestrator. Given the user's prompt, determine which specialist agents should handle it, in order of priority.
 
 Available agents:
 - comedian: handles jokes, humor, entertainment, making things funny
 - scientist: handles science questions, research, technical topics, explanations
 - inspector: handles investigations, mysteries, detective work, problem-solving
 
-Respond with ONLY a comma-separated list of agent names in order of priority.
+Respond with ONLY a JSON array of agent names in order of priority. Include every agent that should contribute, and do not include agents that are irrelevant.
 Examples:
-- "scientist" (for: Explain quantum physics)
-- "scientist,comedian" (for: Tell me something funny about science)
-- "inspector" (for: Solve this mystery)
-- "comedian" (for: Make me laugh)
+- ["scientist"] (for: Explain quantum physics)
+- ["scientist", "comedian"] (for: Tell me something funny about science)
+- ["inspector"] (for: Solve this mystery)
+- ["comedian"] (for: Make me laugh)
 
-If uncertain, default to: comedian
-
-User prompt: "`;
+Only use the available agent names exactly as written. If uncertain, choose the most relevant available agent.`;
 
 function autoCleanText(input = '') {
   return String(input || '').trim().replace(/\s+/g, ' ');
@@ -94,28 +92,32 @@ async function selectAgentsWithLLM(message, disabledAgents = [], apiKey = '') {
     (name) => !disabledAgents.includes(name)
   );
 
-  const systemPrompt = SELECTOR_PROMPT + message + '"';
+  const systemPrompt = `${SELECTOR_PROMPT}\n\nCurrently enabled agents: ${enabledNames.join(', ')}`;
 
   try {
     let response;
     try {
-      response = await callVibeProxy({ message: '', systemPrompt, history: [], apiKey });
+      response = await callVibeProxy({ message, systemPrompt, history: [], apiKey });
     } catch (vibeError) {
       try {
-        response = await callOllama({ message: '', systemPrompt, history: [], apiKey });
+        response = await callOllama({ message, systemPrompt, history: [], apiKey });
       } catch (ollamaError) {
-        return fallbackKeywordSelection(message, disabledAgents);
+        throw new Error(`Agent selection failed: ${vibeError.message}; ${ollamaError.message}`);
       }
     }
 
-    const agentNames = response
-      .toLowerCase()
-      .split(',')
-      .map((name) => name.trim())
+    const normalizedResponse = String(response || '').trim().replace(/^```(?:json)?\s*|\s*```$/gi, '');
+    const selectedNames = JSON.parse(normalizedResponse);
+    if (!Array.isArray(selectedNames)) {
+      throw new Error('Agent selector did not return an array');
+    }
+
+    const agentNames = selectedNames
+      .map((name) => String(name).toLowerCase().trim())
       .filter((name) => enabledNames.includes(name));
 
     if (agentNames.length === 0) {
-      return fallbackKeywordSelection(message, disabledAgents);
+      throw new Error('Agent selector returned no enabled agents');
     }
 
     const unique = [];
@@ -128,45 +130,8 @@ async function selectAgentsWithLLM(message, disabledAgents = [], apiKey = '') {
     return unique.map((name) => AGENT_MAP[name]).filter(Boolean);
   } catch (error) {
     console.error('LLM selection error:', error);
-    return fallbackKeywordSelection(message, disabledAgents);
+    throw error;
   }
-}
-
-function fallbackKeywordSelection(message, disabledAgents = []) {
-  const text = String(message || '').toLowerCase();
-  const enabledAgents = Object.values(AGENT_MAP).filter(
-    (agent) => !disabledAgents.includes(agent.name)
-  );
-  const matchedAgents = [];
-
-  if (/(detective|investigate|case|suspect|clue|mystery|crime|evidence|forensics|inspect|alibi|whodunit|hidden|fraud|interrogate|investigation|rescue|squad|mission|tracks|pattern|solve)/.test(text)) {
-    matchedAgents.push(inspector);
-  }
-
-  if (/(science|scientist|physics|chemistry|biology|astronomy|space|experiment|theory|research|equation|planet|energy|cell|genetics|data|compute|rocket|universe|quantum|entanglement|particle|molecule|dna|galaxy|cosmos|black hole|relativity|thermodynamics|nuclear|mission)/.test(text)) {
-    matchedAgents.push(scientist);
-  }
-
-  if (/(joke|funny|laugh|comedy|humor|pun|roast|standup|banter|giggle|entertain|hilarious|game|superhero|animal|adventure)/.test(text)) {
-    matchedAgents.push(comedian);
-  }
-
-  const ordered = matchedAgents.filter((agent) =>
-    enabledAgents.some((enabled) => enabled.name === agent.name)
-  );
-  const unique = [];
-
-  ordered.forEach((agent) => {
-    if (!unique.some((item) => item.name === agent.name)) {
-      unique.push(agent);
-    }
-  });
-
-  if (unique.length === 0) {
-    return enabledAgents.length ? [enabledAgents[0]] : [comedian];
-  }
-
-  return unique;
 }
 
 async function resolveAgents(message, disabledAgents = [], apiKey = '') {
@@ -174,14 +139,16 @@ async function resolveAgents(message, disabledAgents = [], apiKey = '') {
 }
 
 function pickAgent(message, disabledAgents = []) {
-  return fallbackKeywordSelection(message, disabledAgents)[0] || comedian;
+  return AGENTS.find((agent) => !disabledAgents.includes(agent.name)) || comedian;
 }
 
 async function routeMessage(message, history = [], options = {}) {
   const cleanedMessage = autoCleanText(message);
   const disabledAgents = Array.isArray(options.disabledAgents) ? options.disabledAgents : [];
   const apiKey = options.apiKey || '';
-  const triggeredAgents = await resolveAgents(cleanedMessage, disabledAgents, apiKey);
+  const triggeredAgents = options.agentSelector
+    ? await options.agentSelector(cleanedMessage, disabledAgents, apiKey)
+    : await resolveAgents(cleanedMessage, disabledAgents, apiKey);
   const selectedAgent = triggeredAgents[0] || pickAgent(cleanedMessage, disabledAgents);
 
   if (options.skipModel) {
@@ -233,5 +200,4 @@ module.exports = {
   resolveAgents,
   routeMessage,
   selectAgentsWithLLM,
-  fallbackKeywordSelection
 };
