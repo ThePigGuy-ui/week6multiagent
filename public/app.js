@@ -9,9 +9,6 @@ const agentList = document.getElementById('agent-list');
 const agentButtons = Array.from(document.querySelectorAll('.agent-item'));
 const tracePrompt = document.getElementById('trace-prompt');
 const traceAgent = document.getElementById('trace-agent');
-const apiKeyInput = document.getElementById('api-key-input');
-const connectButton = document.getElementById('connect-button');
-const connectionStatus = document.getElementById('connection-status');
 const themeToggle = document.getElementById('theme-toggle');
 const clearHistoryButton = document.getElementById('clear-history');
 const universeSelect = document.getElementById('universe-select');
@@ -44,7 +41,6 @@ const state = {
   history: [],
   agentPanelVisible: true,
   disabledAgents: [],
-  apiKeyConnected: true,
   theme: DEFAULT_THEME,
   universe: 'default'
 };
@@ -64,8 +60,7 @@ function persistState() {
     disabledAgents: state.disabledAgents,
     agentPanelVisible: state.agentPanelVisible,
     theme: state.theme,
-    universe: state.universe,
-    apiKeyConnected: state.apiKeyConnected
+    universe: state.universe
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
@@ -84,12 +79,6 @@ function restoreState() {
     state.universe = hydrate.universe || 'default';
   }
 
-  state.apiKeyConnected = false;
-  apiKeyInput.value = '';
-  apiKeyInput.disabled = false;
-  connectButton.style.display = '';
-  connectionStatus.textContent = 'Enter your API key';
-  connectionStatus.className = 'connection-status';
   input.disabled = false;
   button.disabled = false;
   input.focus();
@@ -247,62 +236,6 @@ universeSelect.addEventListener('change', (event) => {
   setStatus(`Universe: ${state.universe}`, true);
 });
 
-async function connectApiKey() {
-  const apiKey = apiKeyInput.value.trim();
-
-  if (!apiKey) {
-    connectionStatus.textContent = 'Enter your API key';
-    connectionStatus.className = 'connection-status';
-    setStatus('Key required', false);
-    return;
-  }
-
-  connectButton.disabled = true;
-  connectionStatus.textContent = 'Connecting...';
-  connectionStatus.className = 'connection-status connecting';
-
-  try {
-    const response = await requestChat({
-        message: 'Hello',
-        history: [],
-        disabledAgents: [],
-        apiKey: apiKey,
-        universe: state.universe
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      state.apiKeyConnected = true;
-      connectionStatus.textContent = '✓ Connected';
-      connectionStatus.className = 'connection-status success';
-      input.disabled = false;
-      button.disabled = false;
-      apiKeyInput.disabled = true;
-      connectButton.style.display = 'none';
-      setStatus('Ready to chat', true);
-      persistState();
-    } else {
-      const errorMsg = data.error || 'Invalid API key or connection failed';
-      throw new Error(errorMsg);
-    }
-  } catch (error) {
-    state.apiKeyConnected = false;
-    const errorMsg = error.message || 'Failed to connect';
-    connectionStatus.textContent = `✗ ${errorMsg.substring(0, 40)}`;
-    connectionStatus.className = 'connection-status error';
-    connectButton.disabled = false;
-    setStatus('Connection failed', false);
-  }
-}
-
-connectButton.addEventListener('click', connectApiKey);
-apiKeyInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    connectApiKey();
-  }
-});
-
 async function sendMessage(event) {
   event.preventDefault();
 
@@ -329,7 +262,6 @@ async function sendMessage(event) {
         message: cleanMessage,
         history: state.history,
         disabledAgents: state.disabledAgents,
-        apiKey: apiKeyInput.value.trim(),
         universe: state.universe
     });
 
