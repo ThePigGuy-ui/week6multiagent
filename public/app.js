@@ -273,11 +273,17 @@ async function sendMessage(event) {
   try {
     const response = await requestChat(cleanMessage);
 
-    const data = await response.json();
     const systemMessage = document.querySelector('.message.system:last-of-type');
     if (systemMessage) {
       systemMessage.remove();
     }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error('This chat needs the app server running. Start it with "npm start" and open the page it prints (e.g. http://localhost:3000) instead of a static file/GitHub Pages preview.');
+    }
+
+    const data = await response.json();
 
     if (!response.ok) {
       throw new Error(data?.error || 'The server returned an error.');
