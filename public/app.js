@@ -15,22 +15,23 @@ const universeSelect = document.getElementById('universe-select');
 
 const STORAGE_KEY = 'multi-agent-chat-state';
 const DEFAULT_THEME = 'dark';
-const VIBE_PROXY_ENDPOINT = 'https://vibe-proxy-gqv4.onrender.com/v1/chat/completions';
-const VIBE_PROXY_KEY = 'sk-vibe-summer-2026';
+// Same-origin by default; set window.APP_API_BASE_URL in public/config.js when
+// the frontend is deployed separately from the Express server (e.g. GitHub Pages).
+const API_BASE_URL = (window.APP_API_BASE_URL || '').replace(/\/$/, '');
+const CHAT_ENDPOINT = `${API_BASE_URL}/api/chat`;
 
-// Send the user's prompt to the classroom proxy and return its raw response.
-// The proxy follows the chat-completions format, so the answer is read from
-// data.choices[0].message.content after the JSON response is parsed.
+// Send the user's prompt to our server, which routes it through the
+// orchestrator/agents and returns { agent, agents, reply, steps }.
 async function requestChat(message) {
-  return fetch(VIBE_PROXY_ENDPOINT, {
+  return fetch(CHAT_ENDPOINT, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${VIBE_PROXY_KEY}`
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'class-chat-model',
-      messages: [{ role: 'user', content: message }]
+      message,
+      history: state.history,
+      disabledAgents: state.disabledAgents
     })
   });
 }
@@ -279,17 +280,18 @@ async function sendMessage(event) {
     }
 
     if (!response.ok) {
-      throw new Error(data?.error?.message || data?.error || 'The model returned an error.');
+      throw new Error(data?.error || 'The server returned an error.');
     }
 
-    const reply = data?.choices?.[0]?.message?.content?.trim();
+    const reply = data?.reply?.trim();
     if (!reply) {
-      throw new Error('The proxy returned an empty response.');
+      throw new Error('The server returned an empty response.');
     }
 
-    addMessage('bot', reply, 'classroom proxy');
+    const agentLabel = data?.agent || 'orchestrator';
+    addMessage('bot', reply, agentLabel);
 
-    updateTrace(cleanMessage, 'classroom proxy');
+    updateTrace(cleanMessage, agentLabel);
     state.history.push({ role: 'assistant', content: reply });
     setStatus('Ready to chat', true);
     persistState();
